@@ -1,6 +1,6 @@
 # Berifica (SPA)
 
-Aplicación web en español para verificar números de serie de billetes bolivianos de la serie B (de montos de 50, 20 y 10).
+Aplicación para verificar números de serie de billetes bolivianos de la serie B (de montos de 50, 20 y 10).
 
 Desarrollado por alenasoft.com.
 
