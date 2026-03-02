@@ -4,6 +4,10 @@ Aplicación web en español para verificar números de serie de billetes bolivia
 
 Desarrollado por alenasoft.com.
 
+## Sitio web
+
+https://b-erifica.web.app
+
 ## Requisitos
 - Node.js 18+
 
@@ -13,12 +17,6 @@ Desarrollado por alenasoft.com.
 
 ## Build
 Ejecutar `npm run build` para generar la carpeta `dist`.
-
-## Deploy en Firebase Hosting
-1. Instalar Firebase CLI si no está instalado.
-2. Ejecutar `firebase login`.
-3. Crear el proyecto en Firebase y actualizar el ID en `.firebaserc`.
-4. Ejecutar `firebase deploy`.
 
 ## Fuente de datos
 Banco Central de Bolivia: https://www.bcb.gob.bo/?q=content/verificador-de-n%C3%BAmero-de-serie
