@@ -15,6 +15,13 @@
   gap: 0.5rem;
 }
 
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .hero h1 {
   font-size: 1.6rem;
   margin: 0;
@@ -144,6 +151,33 @@
 
 .primary:hover {
   background: #b3050f;
+}
+
+.install {
+  border: 1px solid #e30613;
+  background: #ffffff;
+  color: #e30613;
+  padding: 0.8rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.install:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.install:hover:not(:disabled) {
+  background: #fff5f5;
+}
+
+.install-header {
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .result {

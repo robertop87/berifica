@@ -67,12 +67,20 @@ type ResultState = {
   status: 'neutral' | 'success' | 'error'
 }
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
 function App() {
   const [group, setGroup] = useState('')
   const [serial, setSerial] = useState('')
   const [showRanges, setShowRanges] = useState(false)
   const [showRangesLink, setShowRangesLink] = useState(false)
   const [matchedRangeKey, setMatchedRangeKey] = useState<string | null>(null)
+  const [installPromptEvent, setInstallPromptEvent] =
+    useState<BeforeInstallPromptEvent | null>(null)
+  const [isInstalling, setIsInstalling] = useState(false)
   const [result, setResult] = useState<ResultState>({
     message: 'ℹ️ Ingresa los datos para validar.',
     status: 'neutral',
@@ -87,6 +95,26 @@ function App() {
       newLink.rel = 'icon'
       newLink.href = alenasoftIcon
       document.head.appendChild(newLink)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault()
+      setInstallPromptEvent(event as BeforeInstallPromptEvent)
+    }
+
+    const handleAppInstalled = () => {
+      setInstallPromptEvent(null)
+      setIsInstalling(false)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
     }
   }, [])
 
@@ -127,10 +155,34 @@ function App() {
     }
   }
 
+  const handleInstallApp = async () => {
+    if (!installPromptEvent) {
+      return
+    }
+
+    setIsInstalling(true)
+    await installPromptEvent.prompt()
+    await installPromptEvent.userChoice
+    setInstallPromptEvent(null)
+    setIsInstalling(false)
+  }
+
   return (
     <div className="app">
       <header className="hero">
-        <span className="pill">B-erifica</span>
+        <div className="hero-top">
+          <span className="pill">B-erifica</span>
+          {installPromptEvent && (
+            <button
+              type="button"
+              className="install install-header"
+              onClick={handleInstallApp}
+              disabled={isInstalling}
+            >
+              {isInstalling ? 'Abriendo…' : 'Instalar app'}
+            </button>
+          )}
+        </div>
         <h1>Verificador de billetes de serie <b>B</b></h1>
         <p>Verifica en segundos si un billete de la serie B está observado.</p>
       </header>
