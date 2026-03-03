@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-import alenasoftIcon from './assets/alenasoft_icon.png'
+import berificaLogo from './assets/berifica_logo.png'
 import bill10 from './assets/10.jpg'
 import bill20 from './assets/20.jpg'
 import bill50 from './assets/50.jpg'
@@ -89,11 +89,11 @@ function App() {
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
     if (link) {
-      link.href = alenasoftIcon
+      link.href = berificaLogo
     } else {
       const newLink = document.createElement('link')
       newLink.rel = 'icon'
-      newLink.href = alenasoftIcon
+      newLink.href = berificaLogo
       document.head.appendChild(newLink)
     }
   }, [])
