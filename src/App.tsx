@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import alenasoftIcon from './assets/alenasoft_icon.png'
+import bill10 from './assets/10.jpg'
+import bill20 from './assets/20.jpg'
+import bill50 from './assets/50.jpg'
 
 type Range = { start: number; end: number }
 
@@ -51,7 +54,13 @@ const rangesByGroup: Record<string, Range[]> = {
   ],
 }
 
-const groupOptions = ['50', '20', '10']
+const billOptions = [
+  { value: '50', label: 'Bs 50', image: bill50 },
+  { value: '20', label: 'Bs 20', image: bill20 },
+  { value: '10', label: 'Bs 10', image: bill10 },
+]
+
+const groupOptions = billOptions.map((option) => option.value)
 
 type ResultState = {
   message: string
@@ -63,8 +72,9 @@ function App() {
   const [serial, setSerial] = useState('')
   const [showRanges, setShowRanges] = useState(false)
   const [showRangesLink, setShowRangesLink] = useState(false)
+  const [matchedRangeKey, setMatchedRangeKey] = useState<string | null>(null)
   const [result, setResult] = useState<ResultState>({
-    message: 'Resultado',
+    message: 'ℹ️ Ingresa los datos para validar.',
     status: 'neutral',
   })
 
@@ -85,12 +95,13 @@ function App() {
   const handleValidate = () => {
     setShowRanges(false)
     setShowRangesLink(false)
+    setMatchedRangeKey(null)
     const groupValue = group.trim()
     const serialValue = serial.trim()
 
     if (!groupOptions.includes(groupValue)) {
       setResult({
-        message: 'Seleccione un grupo válido (50, 20 o 10).',
+        message: '⚠️ Selecciona un monto válido: 50, 20 o 10.',
         status: 'error',
       })
       return
@@ -98,20 +109,21 @@ function App() {
 
     const serialNumber = Number.parseInt(serialValue, 10)
     if (Number.isNaN(serialNumber)) {
-      setResult({ message: 'Ingrese un número de serie válido.', status: 'error' })
+      setResult({ message: '⚠️ Ingresa un número de serie válido.', status: 'error' })
       return
     }
 
     const ranges = rangesByGroup[groupValue] ?? []
-    const inRange = ranges.some(
+    const matchedRange = ranges.find(
       (range) => serialNumber >= range.start && serialNumber <= range.end,
     )
 
-    if (inRange) {
-      setResult({ message: 'Billete está observado', status: 'error' })
-      setShowRangesLink(true)
+    if (matchedRange) {
+      setResult({ message: '❌ Billete observado.', status: 'error' })
+      setMatchedRangeKey(`${matchedRange.start}-${matchedRange.end}`)
+      setShowRanges(true)
     } else {
-      setResult({ message: 'Billete no está observado', status: 'success' })
+      setResult({ message: '✅ Billete no observado.', status: 'success' })
     }
   }
 
@@ -119,35 +131,40 @@ function App() {
     <div className="app">
       <header className="hero">
         <span className="pill">B-erifica</span>
-        <h1>Verificador de números de serie</h1>
-        <p>
-          Para billetes bolivianos de la serie B. Seleccione el monto y verifique si el
-          número está observado.
-        </p>
+        <h1>Verificador de billetes de serie <b>B</b></h1>
+        <p>Verifica en segundos si un billete de la serie B está observado.</p>
       </header>
 
       <section className="info">
-        <h2>¿Por qué se valida?</h2>
-        <p>
-          La validación es necesaria para que la población pueda verificar de forma rápida y segura si un billete de la Serie B de Bs 10, Bs 20 o Bs 50 se encuentra dentro de los rangos invalidados, evitando así el uso de billetes no válidos en transacciones y reduciendo riesgos de pérdidas económicas.
-        </p>      
+        <h2>¿Cómo usar?</h2>
+        <p>1) Elige el billete. 2) Ingresa el número de serie. 3) Presiona “Validar”.</p>
       </section>
 
       <main className="card">
         <div className="field">
-          <label htmlFor="group">Monto Bs</label>
-          <select
-            id="group"
-            value={group}
-            onChange={(event) => setGroup(event.target.value)}
-          >
-            <option value="">Seleccione un monto</option>
-            {groupOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          <span id="group-label" className="field-label">Billete</span>
+          <div className="bill-picker" role="radiogroup" aria-labelledby="group-label">
+            {billOptions.map((option) => {
+              const selected = group === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`bill-option ${selected ? 'selected' : ''}`}
+                  onClick={() => setGroup(option.value)}
+                >
+                  <img
+                    src={option.image}
+                    alt={`Billete de ${option.label}`}
+                    loading="lazy"
+                  />
+                  <span>{option.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="field">
@@ -186,7 +203,12 @@ function App() {
           <h2>Rangos de serie inválidos para {group} Bs.</h2>
           <ul>
             {rangesForGroup.map((range) => (
-              <li key={`${range.start}-${range.end}`}>
+              <li
+                key={`${range.start}-${range.end}`}
+                className={
+                  matchedRangeKey === `${range.start}-${range.end}` ? 'matched' : ''
+                }
+              >
                 {range.start} - {range.end}
               </li>
             ))}
@@ -205,7 +227,7 @@ function App() {
       <section className="disclaimer">
         <h3>Aviso importante</h3>
         <p>
-          Los datos de rangos de billetes inválidos son obtenidos del{' '}
+          Los rangos de validación se basan en datos del{' '}
           <a
             href="https://www.bcb.gob.bo/?q=content/verificador-de-n%C3%BAmero-de-serie"
             target="_blank"

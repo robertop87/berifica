@@ -6,7 +6,7 @@
   padding: 1.5rem 1.25rem 2rem;
   max-width: 640px;
   margin: 0 auto;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .hero {
@@ -18,12 +18,12 @@
 .hero h1 {
   font-size: 1.6rem;
   margin: 0;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .hero p {
   margin: 0;
-  color: #cbd5f5;
+  color: #475569;
   font-size: 0.95rem;
 }
 
@@ -39,13 +39,13 @@
 }
 
 .card {
-  background: #111827;
+  background: #ffffff;
   border-radius: 1rem;
   padding: 1.5rem;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
   display: grid;
   gap: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #dbe4f0;
 }
 
 .field {
@@ -56,19 +56,79 @@
 
 .field label {
   font-size: 0.85rem;
-  color: #e2e8f0;
+  color: #334155;
   font-weight: 600;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.bill-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.bill-option {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #334155;
+  padding: 0.4rem;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.bill-option img {
+  width: 100%;
+  aspect-ratio: 1.65;
+  object-fit: cover;
+  border-radius: 0.55rem;
+  border: 1px solid #e2e8f0;
+}
+
+.bill-option span {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.bill-option:hover {
+  border-color: #93c5fd;
+}
+
+.bill-option:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+}
+
+.bill-option.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
 }
 
 .field input,
 .field select {
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid #cbd5e1;
   border-radius: 0.75rem;
   padding: 0.7rem 0.9rem;
   font-size: 1rem;
   font-family: inherit;
-  color: #f8fafc;
-  background: #0f172a;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+  border-color: #60a5fa;
 }
 
 .primary {
@@ -91,24 +151,27 @@
   border-radius: 0.75rem;
   font-weight: 600;
   text-align: center;
-  background: #0f172a;
-  color: #f8fafc;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #d8e1ee;
 }
 
 .result.success {
-  background: rgba(22, 163, 74, 0.2);
-  color: #4ade80;
+  background: #e8f8ee;
+  color: #166534;
+  border-color: #9bddb2;
 }
 
 .result.error {
-  background: rgba(227, 6, 19, 0.2);
-  color: #f87171;
+  background: #fdecec;
+  color: #b91c1c;
+  border-color: #f3b1b1;
 }
 
 .link {
   border: none;
   background: transparent;
-  color: #f8fafc;
+  color: #b3050f;
   font-weight: 600;
   cursor: pointer;
   text-align: left;
@@ -117,18 +180,18 @@
 }
 
 .ranges {
-  background: #111827;
+  background: #ffffff;
   border-radius: 1rem;
   padding: 1.25rem;
   display: grid;
   gap: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #dbe4f0;
 }
 
 .ranges h2 {
   margin: 0;
   font-size: 1.1rem;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .ranges ul {
@@ -140,16 +203,23 @@
 }
 
 .ranges li {
-  background: #0f172a;
+  background: #f8fafc;
   border-radius: 0.75rem;
   padding: 0.5rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
   font-size: 0.95rem;
-  color: #e2e8f0;
+  color: #334155;
+}
+
+.ranges li.matched {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  font-weight: 700;
 }
 
 .source {
-  color: #f8fafc;
+  color: #b3050f;
   font-weight: 600;
   text-decoration: none;
 }
@@ -158,27 +228,27 @@
   margin-top: auto;
   text-align: center;
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .info {
-  background: #111827;
+  background: #ffffff;
   border-radius: 1rem;
   padding: 1.25rem;
   display: grid;
   gap: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #dbe4f0;
 }
 
 .info h2 {
   margin: 0;
   font-size: 1.1rem;
-  color: #f8fafc;
+  color: #0f172a;
 }
 
 .info p {
   margin: 0;
-  color: #cbd5f5;
+  color: #475569;
   font-size: 0.95rem;
 }
 
@@ -186,12 +256,12 @@
   width: 100%;
   height: auto;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .disclaimer {
-  background: rgba(227, 6, 19, 0.1);
-  border: 1px solid rgba(227, 6, 19, 0.3);
+  background: #fff7f7;
+  border: 1px solid #fecaca;
   border-radius: 1rem;
   padding: 1.25rem;
   display: grid;
@@ -201,24 +271,24 @@
 .disclaimer h3 {
   margin: 0;
   font-size: 1rem;
-  color: #f87171;
+  color: #b91c1c;
 }
 
 .disclaimer p {
   margin: 0;
-  color: #e2e8f0;
+  color: #334155;
   font-size: 0.9rem;
   line-height: 1.6;
 }
 
 .disclaimer a {
-  color: #f87171;
+  color: #b91c1c;
   font-weight: 600;
   text-decoration: underline;
 }
 
 .footer a {
-  color: #f8fafc;
+  color: #b3050f;
   font-weight: 600;
   text-decoration: none;
 }
@@ -230,5 +300,9 @@
 
   .hero h1 {
     font-size: 2rem;
+  }
+
+  .bill-picker {
+    gap: 0.75rem;
   }
 }
