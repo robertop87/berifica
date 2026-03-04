@@ -63,4 +63,8 @@ export const SERIAL_DIGITS_MAX_LENGTH = 12
 // Relative region for the serial number strip.
 // When the user fills the viewfinder with just the serial area, the strip
 // covers nearly the full frame — generous margins absorb slight mis-framing.
-export const SERIAL_RIGHT_REGION: RelativeRegion = { x: 0.03, y: 0.08, width: 0.94, height: 0.84 }
+// Camera is 1280×720 (16:9). The viewfinder displays it with aspect-ratio 4:1 and
+// object-fit: cover, which center-crops the frame vertically to the middle 44% of
+// its height (visible band: y ≈ 0.28 → 0.72). The region must match that window
+// exactly so the OCR sees only what the user sees in the green box.
+export const SERIAL_RIGHT_REGION: RelativeRegion = { x: 0.02, y: 0.28, width: 0.96, height: 0.44 }

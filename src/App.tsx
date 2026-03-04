@@ -1,25 +1,23 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import berificaLogo from './assets/berifica_logo.png'
-import type { AppMode } from './types'
 import {
   billOptions,
   groupOptions,
-  rangesByGroup,
   SERIAL_DIGITS_MAX_LENGTH,
   SERIAL_RIGHT_REGION,
 } from './constants'
 import { sanitizeSerial, getSerialParts } from './utils/serial'
-import { isSerieB, extractSerial } from './utils/ocr'
+import { extractSerial } from './utils/ocr'
 import { useOcrWorker } from './hooks/useOcrWorker'
 import { useCamera } from './hooks/useCamera'
 import { usePwaInstall } from './hooks/usePwaInstall'
 import { useBillValidation } from './hooks/useBillValidation'
 
 function App() {
-  const [mode, setMode] = useState<AppMode>('manual')
-  const [isManualValidating, setIsManualValidating] = useState(false)
-  const [isReadingCamera, setIsReadingCamera] = useState(false)
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [isValidating, setIsValidating] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
 
   const { installPromptEvent, isInstalling, handleInstallApp } = usePwaInstall()
 
@@ -41,7 +39,6 @@ function App() {
     isCameraOpen,
     isStartingCamera,
     cameraError,
-    cameraStatus,
     setCameraError,
     setCameraStatus,
     videoRef,
@@ -52,8 +49,8 @@ function App() {
 
   const { readSerialCandidates } = useOcrWorker()
 
-  const isProcessing = isReadingCamera || isManualValidating
-  const manualSerialDigits = serial.replace(/\D/g, '').slice(0, SERIAL_DIGITS_MAX_LENGTH)
+  const isProcessing = isCapturing || isValidating
+  const serialDigits = serial.replace(/\D/g, '').slice(0, SERIAL_DIGITS_MAX_LENGTH)
 
   // Set favicon to app logo
   useEffect(() => {
@@ -82,45 +79,47 @@ function App() {
     validateBill(groupFromQuery, serialFromQuery)
   }, [])
 
-  // Stop camera and clear messages when switching to manual mode
+  // Auto-scroll to ranges section when it appears
   useEffect(() => {
-    if (mode === 'manual') {
+    if (!showRanges || !rangesSectionRef.current) return
+    rangesSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [showRanges, rangesSectionRef])
+
+  const handleToggleCamera = () => {
+    if (showCamera) {
+      setShowCamera(false)
       stopCameraStream()
       setCameraError('')
       setCameraStatus('')
+    } else {
+      setShowCamera(true)
+      openCamera()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
-
-  // Auto-scroll to ranges section when it appears in automatic mode
-  useEffect(() => {
-    if (!showRanges || mode !== 'automatic' || !rangesSectionRef.current) return
-    rangesSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [showRanges, mode, rangesSectionRef])
+  }
 
   const handleValidate = () => {
     if (isProcessing) return
 
     if (!groupOptions.includes(group)) {
-      setResult({ message: 'Selecciona un billete.', status: 'error' })
+      setResult({ message: 'Selecciona un billete (10, 20 o 50 Bs).', status: 'error' })
       return
     }
 
-    if (!manualSerialDigits) {
-      setResult({ message: 'Ingresa un número de serie.', status: 'error' })
+    if (!serialDigits) {
+      setResult({ message: 'Ingresa el número de serie.', status: 'error' })
       return
     }
 
-    setIsManualValidating(true)
+    setIsValidating(true)
     setCameraError('')
     setCameraStatus('')
-    setResult({ message: 'Validando billete...', status: 'loading' })
+    setResult({ message: 'Validando…', status: 'loading' })
 
-    const serialWithAssumedB = `${manualSerialDigits} B`
-    setSerial(serialWithAssumedB)
+    const serialWithB = `${serialDigits} B`
+    setSerial(serialWithB)
     window.requestAnimationFrame(() => {
-      validateBill(group, serialWithAssumedB)
-      setIsManualValidating(false)
+      validateBill(group, serialWithB)
+      setIsValidating(false)
     })
   }
 
@@ -137,14 +136,7 @@ function App() {
       return
     }
 
-    if (!groupOptions.includes(group)) {
-      setCameraError('Selecciona el billete (10, 20 o 50) antes de capturar.')
-      setIsReadingCamera(false)
-      return
-    }
-
-    setIsReadingCamera(true)
-    setShowRanges(false)
+    setIsCapturing(true)
     setCameraError('')
     setCameraStatus('')
     setResult({ message: 'Leyendo serie…', status: 'loading' })
@@ -160,55 +152,31 @@ function App() {
       canvas.height = height
       context.drawImage(video, 0, 0, width, height)
 
-      // Single OCR call: serial number
       const serialReads = await readSerialCandidates(canvas, SERIAL_RIGHT_REGION)
-      const detectedSuffix = isSerieB(serialReads)
+      const rawSerial = extractSerial(serialReads)
 
-      if (!detectedSuffix) {
-        setResult({
-          message: 'ℹ️ Billete no es serie B, no necesita validación. Es válido.',
-          status: 'success',
-        })
-        setCameraStatus(`Bs ${group} — no es serie B`)
-        return
-      }
-
-      const finalSerial = extractSerial(serialReads)
-
-      if (finalSerial == null) {
-        setResult({
-          message: '⚠️ No se pudo leer la serie. Asegúrate de que el número quede dentro del recuadro verde y vuelve a capturar.',
-          status: 'error',
-        })
-        setCameraStatus('No puedo reconocer el número de serie. Reintenta o usa el modo manual.')
-        return
-      }
-
-      const normalizedSerial = sanitizeSerial(finalSerial)
-      setSerial(normalizedSerial)
-      validateBill(group, normalizedSerial)
-
-      const { digits, suffix } = getSerialParts(normalizedSerial)
-      const serialNumber = Number.parseInt(digits, 10)
-      const isObserved =
-        suffix === 'B' &&
-        !Number.isNaN(serialNumber) &&
-        (rangesByGroup[group] ?? []).some(
-          (range) => serialNumber >= range.start && serialNumber <= range.end,
+      if (rawSerial == null) {
+        setCameraError(
+          'No se pudo leer el número. Asegúrate de que quede dentro del recuadro verde y vuelve a capturar.',
         )
+        setResult({ message: 'No se pudo leer. Reintenta o ingrésalo manualmente.', status: 'error' })
+        return
+      }
 
-      if (isObserved) setShowRanges(true)
-
-      setCameraStatus(`Detectado: Bs ${group} / Serie ${normalizedSerial}`)
-    } catch {
-      setCameraError('No puedo reconocer tu billete, ingresa los datos manualmente')
-      setResult({
-        message: 'No puedo reconocer tu billete, ingresa los datos manualmente',
-        status: 'error',
-      })
+      const { digits } = getSerialParts(rawSerial)
+      setSerial(digits)
+      setShowCamera(false)
+      stopCameraStream()
       setCameraStatus('')
+      setResult({
+        message: `Serie leída: ${digits} — Presiona Validar para continuar.`,
+        status: 'neutral',
+      })
+    } catch {
+      setCameraError('Error al procesar imagen. Ingresa los datos manualmente.')
+      setResult({ message: 'Error al procesar. Ingresa los datos manualmente.', status: 'error' })
     } finally {
-      setIsReadingCamera(false)
+      setIsCapturing(false)
     }
   }
 
@@ -228,150 +196,94 @@ function App() {
             </button>
           )}
         </div>
-        <h1>Verificador de billetes de serie <b>B</b></h1>
-        <p>Verifica en segundos si un billete de la serie B está observado.</p>
+        <h1>Verificador de billetes de <b>serie B</b></h1>
+        <p>Verifica si un billete de la serie B está observado por el BCB.</p>
       </header>
 
       <section className="info">
-        <h2>¿Cómo usar? · {mode === 'manual' ? 'Modo manual' : 'Modo automático'}</h2>
-        {mode === 'manual' ? (
-          <p>
-            1) Elige billete (10, 20 o 50) de serie B. 2) Ingresa solo los dígitos de serie. 3) Presiona "Validar".
-          </p>
-        ) : (
-          <>
-            <ol className="camera-steps">
-              <li>Elige el billete (10, 20 o 50) abajo.</li>
-              <li>Presiona <strong>Abrir cámara</strong>.</li>
-              <li>Acerca la cámara al <strong>número de serie</strong> en la parte superior del billete hasta que llene el recuadro verde.</li>
-              <li>Buena iluminación, <strong>sin sombras</strong> sobre el número.</li>
-              <li>Espera que enfoque y presiona <strong>Capturar y validar</strong>.</li>
-            </ol>
-            <p className="mode-disclaimer">
-              ⚠ Modo experimental — puede fallar con mala iluminación o enfoque.
-              En ese caso usa el <strong>modo manual</strong>.
-            </p>
-          </>
-        )}
+        <h2>¿Cómo usar?</h2>
+        <ol className="info-steps">
+          <li>Elige el billete (10, 20 o 50 Bs).</li>
+          <li>
+            Ingresa el número de serie: escríbelo directamente o presiona el botón{' '}
+            <strong>📷</strong> para usar la cámara.
+          </li>
+          <li>Presiona <strong>Validar</strong>.</li>
+        </ol>
+        <p className="serie-b-notice">
+          ⚠ <strong>Solo los billetes de serie B necesitan validación.</strong>{' '}
+          Usar con otras series (A, C, etc.) no tiene ninguna utilidad.
+        </p>
       </section>
 
       <main className="card">
-        <div className="mode-switch" role="tablist" aria-label="Modo de validación">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'manual'}
-            className={`mode-tab ${mode === 'manual' ? 'active' : ''}`}
-            onClick={() => setMode('manual')}
-            disabled={isProcessing}
-          >
-            Manual
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'automatic'}
-            className={`mode-tab ${mode === 'automatic' ? 'active' : ''}`}
-            onClick={() => setMode('automatic')}
-            disabled={isProcessing}
-          >
-            Automático
-          </button>
+        {/* Bill picker */}
+        <div className="field">
+          <span id="group-label" className="field-label">Billete</span>
+          <div className="bill-picker" role="radiogroup" aria-labelledby="group-label">
+            {billOptions.map((option) => {
+              const selected = group === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`bill-option ${selected ? 'selected' : ''}`}
+                  onClick={() => setGroup(option.value)}
+                  disabled={isProcessing}
+                >
+                  <img src={option.image} alt={`Billete de ${option.label}`} loading="lazy" />
+                  <span>{option.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        {mode === 'manual' && (
-          <>
-            <div className="field">
-              <span id="group-label" className="field-label">Billete</span>
-              <div className="bill-picker" role="radiogroup" aria-labelledby="group-label">
-                {billOptions.map((option) => {
-                  const selected = group === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      className={`bill-option ${selected ? 'selected' : ''}`}
-                      onClick={() => setGroup(option.value)}
-                    >
-                      <img src={option.image} alt={`Billete de ${option.label}`} loading="lazy" />
-                      <span>{option.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="field">
-              <label htmlFor="serial">Número de serie (serie B asumida)</label>
-              <input
-                id="serial"
-                inputMode="numeric"
-                maxLength={SERIAL_DIGITS_MAX_LENGTH}
-                value={manualSerialDigits}
-                onChange={(event) => {
-                  const digits = event.target.value.replace(/\D/g, '').slice(0, SERIAL_DIGITS_MAX_LENGTH)
-                  setSerial(digits ? `${digits} B` : '')
-                }}
-                placeholder="Ej. 274462658"
-              />
-            </div>
-
-            <button type="button" className="primary" onClick={handleValidate}>
-              {isManualValidating ? 'Validando…' : 'Validar'}
+        {/* Serial input with inline camera toggle */}
+        <div className="field">
+          <label htmlFor="serial">Número de serie</label>
+          <div className="serial-input-row">
+            <input
+              id="serial"
+              inputMode="numeric"
+              maxLength={SERIAL_DIGITS_MAX_LENGTH}
+              value={serialDigits}
+              onChange={(event) => {
+                const digits = event.target.value.replace(/\D/g, '').slice(0, SERIAL_DIGITS_MAX_LENGTH)
+                setSerial(digits)
+              }}
+              placeholder="Ej. 274462658"
+              disabled={isCapturing}
+              aria-label="Número de serie"
+            />
+            <button
+              type="button"
+              className={`camera-toggle-btn${showCamera ? ' active' : ''}`}
+              onClick={handleToggleCamera}
+              disabled={isProcessing}
+              aria-label={showCamera ? 'Cerrar cámara' : 'Usar cámara'}
+              title={showCamera ? 'Cerrar cámara' : 'Usar cámara'}
+            >
+              📷
             </button>
-          </>
-        )}
+          </div>
+        </div>
 
-        {mode === 'automatic' && (
-          <div className="camera-panel">
-            <div className="field">
-              <span id="group-label-auto" className="field-label">Billete</span>
-              <div className="bill-picker" role="radiogroup" aria-labelledby="group-label-auto">
-                {billOptions.map((option) => {
-                  const selected = group === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      className={`bill-option ${selected ? 'selected' : ''}`}
-                      onClick={() => setGroup(option.value)}
-                      disabled={isProcessing}
-                    >
-                      <img src={option.image} alt={`Billete de ${option.label}`} loading="lazy" />
-                      <span>{option.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="camera-header">
-              <strong>Cámara</strong>
-              {!isCameraOpen ? (
-                <button
-                  type="button"
-                  className="install"
-                  onClick={openCamera}
-                  disabled={isStartingCamera}
-                >
-                  {isStartingCamera ? 'Abriendo cámara…' : 'Abrir cámara'}
-                </button>
-              ) : (
-                <button type="button" className="install" onClick={stopCameraStream}>
-                  Cerrar cámara
-                </button>
-              )}
-            </div>
-
+        {/* Inline camera section */}
+        {showCamera && (
+          <div className="camera-section">
             <p className="camera-help">
-              Acerca la cámara al <strong>número de serie</strong> del billete hasta que llene el recuadro verde.
+              Acerca el <strong>número de serie</strong> del billete hasta que llene el recuadro
+              verde. Buena iluminación y <strong>sin sombras</strong>.
             </p>
 
-            {isCameraOpen && (
+            {!isCapturing && cameraError && (
+              <div className="camera-error">{cameraError}</div>
+            )}
+
+            {isCameraOpen ? (
               <>
                 <div className="camera-viewfinder">
                   <video ref={videoRef} className="camera-video" autoPlay playsInline muted />
@@ -387,16 +299,28 @@ function App() {
                   onClick={captureAndReadBill}
                   disabled={isProcessing}
                 >
-                  {isReadingCamera ? 'Capturando y validando…' : 'Capturar y validar'}
+                  {isCapturing ? 'Leyendo serie…' : 'Capturar número de serie'}
                 </button>
               </>
+            ) : (
+              <p className="camera-starting">
+                {isStartingCamera ? 'Abriendo cámara…' : 'Esperando cámara…'}
+              </p>
             )}
 
-            {!isProcessing && cameraStatus && <div className="camera-status">{cameraStatus}</div>}
-            {!isProcessing && cameraError && <div className="camera-error">{cameraError}</div>}
             <canvas ref={captureCanvasRef} className="camera-canvas" aria-hidden="true" />
           </div>
         )}
+
+        {/* Always-visible validate button */}
+        <button
+          type="button"
+          className="primary"
+          onClick={handleValidate}
+          disabled={isProcessing}
+        >
+          {isValidating ? 'Validando…' : 'Validar'}
+        </button>
 
         <div className={`result ${result.status}`}>
           {result.status === 'loading' ? (

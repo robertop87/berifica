@@ -58,7 +58,10 @@ export function useOcrWorker() {
   }
 
   // Pipeline: best-channel → Gaussian denoise → sharpen → Otsu binary.
-  // PSM.SINGLE_LINE: serial is one line of digits followed by A/B/C.
+  // Three passes to handle varied lighting and bill color:
+  //   1. Dark-text-on-light  (standard binary)  + PSM.SINGLE_LINE
+  //   2. Light-text-on-dark  (inverted binary)  + PSM.SINGLE_LINE
+  //   3. Grayscale only (no binarization)       + PSM.SPARSE_TEXT  ← most forgiving
   const readSerialCandidates = async (
     frameCanvas: HTMLCanvasElement,
     region: RelativeRegion,
@@ -68,11 +71,27 @@ export function useOcrWorker() {
     const bestCh = createBestChannelCanvas(base)
     const denoised = createGaussianBlurCanvas(bestCh)
     const sharpened = createSharpenedCanvas(denoised)
-    const binary = createBinaryCanvas(sharpened)
 
+    const results: Array<{ text: string; confidence: number }> = []
+
+    // Pass 1 — dark text on light background
+    const binary = createBinaryCanvas(sharpened)
     await setParams(worker, '0123456789ABC', Tesseract.PSM.SINGLE_LINE)
-    const { data: { text, confidence } } = await worker.recognize(binary)
-    return [{ text: normalizeOcrText(text), confidence }]
+    const r1 = await worker.recognize(binary)
+    results.push({ text: normalizeOcrText(r1.data.text), confidence: r1.data.confidence })
+
+    // Pass 2 — inverted: catches bills with light serial on dark background
+    const inverted = createBinaryCanvas(sharpened, true)
+    await setParams(worker, '0123456789ABC', Tesseract.PSM.SINGLE_LINE)
+    const r2 = await worker.recognize(inverted)
+    results.push({ text: normalizeOcrText(r2.data.text), confidence: r2.data.confidence })
+
+    // Pass 3 — grayscale, no binarization, SPARSE_TEXT: most tolerant of tilt and noise
+    await setParams(worker, '0123456789ABC', Tesseract.PSM.SPARSE_TEXT)
+    const r3 = await worker.recognize(bestCh)
+    results.push({ text: normalizeOcrText(r3.data.text), confidence: r3.data.confidence })
+
+    return results
   }
 
   // Pre-warm on mount so the first capture doesn't pay the ~300 ms init cost.
