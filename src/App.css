@@ -386,9 +386,9 @@
   line-height: 1.4;
 }
 
-/* Serial zone: top-right — mirrors SERIAL_RIGHT_REGION (x:0.5, y:0.06, w:0.45, h:0.22) */
+/* Serial zone: top-right — right edge aligned with amount zone */
 .camera-zone-serial {
-  left: 50%;
+  right: 4%;
   top: 6%;
   width: 45%;
   height: 22%;
@@ -401,7 +401,7 @@
 
 /* Amount zone: bottom-right — mirrors AMOUNT_REGION (x:0.68, y:0.62, w:0.28, h:0.32) */
 .camera-zone-amount {
-  left: 68%;
+  right: 4%;
   top: 62%;
   width: 28%;
   height: 32%;
