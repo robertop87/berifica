@@ -61,10 +61,20 @@ const billOptions = [
 ]
 
 const groupOptions = billOptions.map((option) => option.value)
+const SERIAL_MAX_LENGTH = 12
+
+const sanitizeSerial = (value: string) => value.replace(/\D/g, '').slice(0, SERIAL_MAX_LENGTH)
 
 type ResultState = {
   message: string
   status: 'neutral' | 'success' | 'error'
+}
+
+type ValidationHistoryEntry = {
+  id: number
+  amount: string
+  serie: string
+  isOk: boolean
 }
 
 type BeforeInstallPromptEvent = Event & {
@@ -76,11 +86,12 @@ function App() {
   const [group, setGroup] = useState('')
   const [serial, setSerial] = useState('')
   const [showRanges, setShowRanges] = useState(false)
-  const [showRangesLink, setShowRangesLink] = useState(false)
   const [matchedRangeKey, setMatchedRangeKey] = useState<string | null>(null)
   const [installPromptEvent, setInstallPromptEvent] =
     useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalling, setIsInstalling] = useState(false)
+  const [validationHistory, setValidationHistory] = useState<ValidationHistoryEntry[]>([])
+  const [latestValidationKey, setLatestValidationKey] = useState<string | null>(null)
   const [result, setResult] = useState<ResultState>({
     message: 'ℹ️ Ingresa los datos para validar.',
     status: 'neutral',
@@ -119,25 +130,27 @@ function App() {
   }, [])
 
   const rangesForGroup = useMemo(() => rangesByGroup[group] ?? [], [group])
+  const hasValidGroupSelection = groupOptions.includes(group.trim())
 
-  const handleValidate = () => {
+  const validateBill = (groupInput: string, serialInput: string) => {
     setShowRanges(false)
-    setShowRangesLink(false)
     setMatchedRangeKey(null)
-    const groupValue = group.trim()
-    const serialValue = serial.trim()
+    const groupValue = groupInput.trim()
+    const serialValue = sanitizeSerial(serialInput.trim())
 
     if (!groupOptions.includes(groupValue)) {
       setResult({
         message: '⚠️ Selecciona un monto válido: 50, 20 o 10.',
         status: 'error',
       })
+      addValidationToHistory(groupValue, serialValue, false)
       return
     }
 
     const serialNumber = Number.parseInt(serialValue, 10)
     if (Number.isNaN(serialNumber)) {
       setResult({ message: '⚠️ Ingresa un número de serie válido.', status: 'error' })
+      addValidationToHistory(groupValue, serialValue, false)
       return
     }
 
@@ -150,9 +163,59 @@ function App() {
       setResult({ message: '❌ Billete observado.', status: 'error' })
       setMatchedRangeKey(`${matchedRange.start}-${matchedRange.end}`)
       setShowRanges(true)
+      addValidationToHistory(groupValue, serialValue, false)
     } else {
       setResult({ message: '✅ Billete no observado.', status: 'success' })
+      addValidationToHistory(groupValue, serialValue, true)
     }
+  }
+
+  const addValidationToHistory = (amount: string, serie: string, isOk: boolean) => {
+    const normalizedAmount = amount || '-'
+    const normalizedSerie = serie || '-'
+    const validationKey = `${normalizedAmount}::${normalizedSerie}::${isOk ? 'ok' : 'nok'}`
+
+    setLatestValidationKey(validationKey)
+
+    setValidationHistory((previous) => {
+      const alreadyExists = previous.some(
+        (entry) =>
+          entry.amount === normalizedAmount &&
+          entry.serie === normalizedSerie &&
+          entry.isOk === isOk,
+      )
+
+      if (alreadyExists) {
+        return previous
+      }
+
+      const nextEntry: ValidationHistoryEntry = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        amount: normalizedAmount,
+        serie: normalizedSerie,
+        isOk,
+      }
+
+      return [nextEntry, ...previous]
+    })
+  }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const groupFromQuery = params.get('monto')?.trim() ?? ''
+    const serialFromQuery = sanitizeSerial(params.get('serie') ?? '')
+
+    if (!groupFromQuery && !serialFromQuery) {
+      return
+    }
+
+    setGroup(groupFromQuery)
+    setSerial(serialFromQuery)
+    validateBill(groupFromQuery, serialFromQuery)
+  }, [])
+
+  const handleValidate = () => {
+    validateBill(group, serial)
   }
 
   const handleInstallApp = async () => {
@@ -225,8 +288,9 @@ function App() {
             id="serial"
             inputMode="numeric"
             pattern="[0-9]*"
+            maxLength={SERIAL_MAX_LENGTH}
             value={serial}
-            onChange={(event) => setSerial(event.target.value.replace(/\D/g, ''))}
+            onChange={(event) => setSerial(sanitizeSerial(event.target.value))}
             placeholder="Ej. 87280145"
           />
         </div>
@@ -243,7 +307,7 @@ function App() {
           </button>
         )}
 
-        {!showRanges && showRangesLink && (
+        {!showRanges && hasValidGroupSelection && (
           <button type="button" className="link" onClick={() => setShowRanges(true)}>
             Ver rangos de serie inválidos
           </button>
@@ -273,6 +337,42 @@ function App() {
           >
             Ver fuente de datos (BCB)
           </a>
+        </section>
+      )}
+
+      {validationHistory.length > 0 && (
+        <section className="history" aria-label="Historial de validaciones">
+          <h3>Historial</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Monto</th>
+                <th>Serie</th>
+                <th>&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+              {validationHistory.map((entry) => (
+                <tr
+                  key={entry.id}
+                  className={
+                    `${entry.amount}::${entry.serie}::${entry.isOk ? 'ok' : 'nok'}` ===
+                    latestValidationKey
+                      ? 'latest'
+                      : ''
+                  }
+                >
+                  <td>{entry.amount}</td>
+                  <td>{entry.serie}</td>
+                  <td aria-label={entry.isOk ? 'OK' : 'NOK'}>
+                    <span className={`history-icon ${entry.isOk ? 'ok' : 'nok'}`}>
+                      {entry.isOk ? '✓' : '✕'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
       )}
 
