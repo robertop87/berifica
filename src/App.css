@@ -302,7 +302,29 @@
 .camera-help {
   margin: 0;
   color: #475569;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.camera-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.3rem;
+  color: #334155;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.mode-disclaimer {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  line-height: 1.45;
 }
 
 .camera-video {
@@ -312,6 +334,82 @@
   background: #0f172a;
   aspect-ratio: 4 / 3;
   object-fit: cover;
+  display: block;
+}
+
+/* ── Viewfinder overlay ───────────────────────────────────────────── */
+.camera-viewfinder {
+  position: relative;
+  width: 100%;
+}
+
+.camera-guide-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+/* Darken the left half that we DON'T read, to guide the user's eye right */
+.camera-guide-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.45) 48%,
+    transparent 52%
+  );
+}
+
+.camera-zone {
+  position: absolute;
+  border: 2px solid;
+  border-radius: 0.3rem;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.camera-zone-label {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 0;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.2rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Serial zone: top-right — mirrors SERIAL_RIGHT_REGION (x:0.5, y:0.06, w:0.45, h:0.22) */
+.camera-zone-serial {
+  left: 50%;
+  top: 6%;
+  width: 45%;
+  height: 22%;
+  border-color: #34d399;
+}
+
+.camera-zone-serial .camera-zone-label {
+  background: rgba(5, 150, 105, 0.85);
+}
+
+/* Amount zone: bottom-right — mirrors AMOUNT_REGION (x:0.68, y:0.62, w:0.28, h:0.32) */
+.camera-zone-amount {
+  left: 68%;
+  top: 62%;
+  width: 28%;
+  height: 32%;
+  border-color: #fb923c;
+}
+
+.camera-zone-amount .camera-zone-label {
+  background: rgba(194, 65, 12, 0.85);
 }
 
 .camera-status {
