@@ -332,7 +332,9 @@
   border-radius: 0.75rem;
   border: 1px solid #cbd5e1;
   background: #0f172a;
-  aspect-ratio: 4 / 3;
+  /* Wide strip: matches the serial number proportions so the user fills
+     the frame with just the serial area rather than the whole bill. */
+  aspect-ratio: 4 / 1;
   object-fit: cover;
   display: block;
 }
@@ -349,19 +351,6 @@
   pointer-events: none;
   border-radius: 0.75rem;
   overflow: hidden;
-}
-
-/* Darken the left half that we DON'T read, to guide the user's eye right */
-.camera-guide-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.45) 0%,
-    rgba(0, 0, 0, 0.45) 48%,
-    transparent 52%
-  );
 }
 
 .camera-zone {
@@ -386,30 +375,17 @@
   line-height: 1.4;
 }
 
-/* Serial zone: top-right — right edge aligned with amount zone */
+/* Serial zone: fills almost the entire strip viewfinder */
 .camera-zone-serial {
-  right: 4%;
-  top: 6%;
-  width: 45%;
-  height: 22%;
+  left: 3%;
+  top: 8%;
+  width: 94%;
+  height: 84%;
   border-color: #34d399;
 }
 
 .camera-zone-serial .camera-zone-label {
   background: rgba(5, 150, 105, 0.85);
-}
-
-/* Amount zone: bottom-right — mirrors AMOUNT_REGION (x:0.68, y:0.62, w:0.28, h:0.32) */
-.camera-zone-amount {
-  right: 4%;
-  top: 62%;
-  width: 28%;
-  height: 32%;
-  border-color: #fb923c;
-}
-
-.camera-zone-amount .camera-zone-label {
-  background: rgba(194, 65, 12, 0.85);
 }
 
 .camera-status {

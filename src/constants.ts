@@ -60,8 +60,7 @@ export const groupOptions = billOptions.map((option) => option.value)
 
 export const SERIAL_DIGITS_MAX_LENGTH = 12
 
-// Relative region for the denomination numeral (bottom-right corner of the bill)
-export const AMOUNT_REGION: RelativeRegion = { x: 0.68, y: 0.62, width: 0.28, height: 0.32 }
-
-// Relative region for the serial number line (top-right of the bill)
-export const SERIAL_RIGHT_REGION: RelativeRegion = { x: 0.5, y: 0.06, width: 0.45, height: 0.22 }
+// Relative region for the serial number strip.
+// When the user fills the viewfinder with just the serial area, the strip
+// covers nearly the full frame — generous margins absorb slight mis-framing.
+export const SERIAL_RIGHT_REGION: RelativeRegion = { x: 0.03, y: 0.08, width: 0.94, height: 0.84 }

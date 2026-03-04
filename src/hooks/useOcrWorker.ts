@@ -58,24 +58,6 @@ export function useOcrWorker() {
   }
 
   // Pipeline: best-channel → Gaussian denoise → sharpen → Otsu binary.
-  // PSM.SINGLE_WORD: the denomination is a lone numeral — tightest segmentation mode.
-  const readAmountCandidates = async (
-    frameCanvas: HTMLCanvasElement,
-    region: RelativeRegion,
-  ): Promise<Array<{ text: string; confidence: number }>> => {
-    const worker = await getWorker()
-    const base = createRegionCanvas(frameCanvas, region)
-    const bestCh = createBestChannelCanvas(base)
-    const denoised = createGaussianBlurCanvas(bestCh)
-    const sharpened = createSharpenedCanvas(denoised)
-    const binary = createBinaryCanvas(sharpened)
-
-    await setParams(worker, '01250', Tesseract.PSM.SINGLE_WORD)
-    const { data: { text, confidence } } = await worker.recognize(binary)
-    return [{ text: normalizeOcrText(text), confidence }]
-  }
-
-  // Pipeline: best-channel → Gaussian denoise → sharpen → Otsu binary.
   // PSM.SINGLE_LINE: serial is one line of digits followed by A/B/C.
   const readSerialCandidates = async (
     frameCanvas: HTMLCanvasElement,
@@ -106,5 +88,5 @@ export function useOcrWorker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { readAmountCandidates, readSerialCandidates }
+  return { readSerialCandidates }
 }

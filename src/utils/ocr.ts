@@ -24,18 +24,14 @@ export const extractAmount = (reads: OcrRead[]): string | null => {
   return best?.value ?? null
 }
 
-// Extracts only the serie-type letter (A/B/C) from OCR reads, without needing
-// the full digit string. Used to decide whether to proceed with range validation.
-export const extractSerialSuffix = (reads: OcrRead[]): string => {
+// Returns true if the OCR reads contain a clear serie-B suffix.
+// Any other result (A, C, undetected) means the bill doesn't need validation.
+export const isSerieB = (reads: OcrRead[]): boolean => {
   for (const { text } of reads) {
-    // Collapse OCR-inserted spaces within digit runs first
     const collapsed = text.replace(/(\d)\s+(\d)/g, '$1$2').replace(/(\d)\s+(\d)/g, '$1$2')
-    const match = collapsed.match(/(\d{5,12})\s*([ABC])(?!\w)/)
-    if (match) return match[2]
-    // A commonly confused with 4 at end of digit string
-    if (/\d{5,11}4(?!\d)/.test(collapsed)) return 'A'
+    if (/\d{5,12}\s*B(?!\w)/.test(collapsed)) return true
   }
-  return ''
+  return false
 }
 
 export const extractSerial = (reads: OcrRead[]): string | null => {

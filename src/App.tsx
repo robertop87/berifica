@@ -7,11 +7,10 @@ import {
   groupOptions,
   rangesByGroup,
   SERIAL_DIGITS_MAX_LENGTH,
-  AMOUNT_REGION,
   SERIAL_RIGHT_REGION,
 } from './constants'
 import { sanitizeSerial, getSerialParts } from './utils/serial'
-import { extractAmount, extractSerialSuffix, extractSerial } from './utils/ocr'
+import { isSerieB, extractSerial } from './utils/ocr'
 import { useOcrWorker } from './hooks/useOcrWorker'
 import { useCamera } from './hooks/useCamera'
 import { usePwaInstall } from './hooks/usePwaInstall'
@@ -51,7 +50,7 @@ function App() {
     stopCameraStream,
   } = useCamera()
 
-  const { readAmountCandidates, readSerialCandidates } = useOcrWorker()
+  const { readSerialCandidates } = useOcrWorker()
 
   const isProcessing = isReadingCamera || isManualValidating
   const manualSerialDigits = serial.replace(/\D/g, '').slice(0, SERIAL_DIGITS_MAX_LENGTH)
@@ -138,11 +137,17 @@ function App() {
       return
     }
 
+    if (!groupOptions.includes(group)) {
+      setCameraError('Selecciona el billete (10, 20 o 50) antes de capturar.')
+      setIsReadingCamera(false)
+      return
+    }
+
     setIsReadingCamera(true)
     setShowRanges(false)
     setCameraError('')
     setCameraStatus('')
-    setResult({ message: 'Validando billete...', status: 'loading' })
+    setResult({ message: 'Leyendo serie…', status: 'loading' })
 
     try {
       const context = canvas.getContext('2d')
@@ -155,32 +160,16 @@ function App() {
       canvas.height = height
       context.drawImage(video, 0, 0, width, height)
 
-      // OCR call 1: denomination
-      setResult({ message: 'Leyendo billete…', status: 'loading' })
-
-      const amountReads = await readAmountCandidates(canvas, AMOUNT_REGION)
-      const finalAmount = extractAmount(amountReads)
-
-      if (finalAmount == null || !groupOptions.includes(finalAmount)) {
-        setResult({
-          message: '⚠️ No se pudo leer el monto. Coloca el billete dentro del recuadro naranja y vuelve a capturar.',
-          status: 'error',
-        })
-        setCameraStatus('No puedo reconocer el monto. Reintenta o usa el modo manual.')
-        return
-      }
-
-      // OCR call 2: serial
+      // Single OCR call: serial number
       const serialReads = await readSerialCandidates(canvas, SERIAL_RIGHT_REGION)
-      const detectedSuffix = extractSerialSuffix(serialReads)
+      const detectedSuffix = isSerieB(serialReads)
 
-      if (detectedSuffix !== 'B') {
-        const suffixLabel = detectedSuffix || 'desconocida'
+      if (!detectedSuffix) {
         setResult({
-          message: `ℹ️ Serie ${suffixLabel} detectada — no es serie B, no necesita validación.`,
+          message: 'ℹ️ Billete no es serie B, no necesita validación. Es válido.',
           status: 'success',
         })
-        setCameraStatus(`Detectado: Bs ${finalAmount} / Serie ${suffixLabel}`)
+        setCameraStatus(`Bs ${group} — no es serie B`)
         return
       }
 
@@ -188,7 +177,7 @@ function App() {
 
       if (finalSerial == null) {
         setResult({
-          message: '⚠️ No se pudo leer la serie. Coloca el billete dentro del recuadro verde y vuelve a capturar.',
+          message: '⚠️ No se pudo leer la serie. Asegúrate de que el número quede dentro del recuadro verde y vuelve a capturar.',
           status: 'error',
         })
         setCameraStatus('No puedo reconocer el número de serie. Reintenta o usa el modo manual.')
@@ -196,22 +185,21 @@ function App() {
       }
 
       const normalizedSerial = sanitizeSerial(finalSerial)
-      setGroup(finalAmount)
       setSerial(normalizedSerial)
-      validateBill(finalAmount, normalizedSerial)
+      validateBill(group, normalizedSerial)
 
       const { digits, suffix } = getSerialParts(normalizedSerial)
       const serialNumber = Number.parseInt(digits, 10)
       const isObserved =
         suffix === 'B' &&
         !Number.isNaN(serialNumber) &&
-        (rangesByGroup[finalAmount] ?? []).some(
+        (rangesByGroup[group] ?? []).some(
           (range) => serialNumber >= range.start && serialNumber <= range.end,
         )
 
       if (isObserved) setShowRanges(true)
 
-      setCameraStatus(`Detectado: Bs ${finalAmount} / Serie ${normalizedSerial}`)
+      setCameraStatus(`Detectado: Bs ${group} / Serie ${normalizedSerial}`)
     } catch {
       setCameraError('No puedo reconocer tu billete, ingresa los datos manualmente')
       setResult({
@@ -253,14 +241,15 @@ function App() {
         ) : (
           <>
             <ol className="camera-steps">
-              <li>Coloca el billete plano, con el <strong>lado derecho</strong> apuntando a la cámara.</li>
-              <li>Acerca hasta que la serie (arriba) y el monto (abajo) queden dentro de los recuadros.</li>
-              <li><strong>Sin sombras</strong> sobre la serie ni el monto — apunta la luz desde arriba.</li>
+              <li>Elige el billete (10, 20 o 50) abajo.</li>
+              <li>Presiona <strong>Abrir cámara</strong>.</li>
+              <li>Acerca la cámara al <strong>número de serie</strong> en la parte superior del billete hasta que llene el recuadro verde.</li>
+              <li>Buena iluminación, <strong>sin sombras</strong> sobre el número.</li>
               <li>Espera que enfoque y presiona <strong>Capturar y validar</strong>.</li>
             </ol>
             <p className="mode-disclaimer">
-              ⚠ Modo experimental — el reconocimiento puede fallar según la iluminación o el ángulo.
-              Si no detecta correctamente, usa el <strong>modo manual</strong>.
+              ⚠ Modo experimental — puede fallar con mala iluminación o enfoque.
+              En ese caso usa el <strong>modo manual</strong>.
             </p>
           </>
         )}
@@ -337,8 +326,31 @@ function App() {
 
         {mode === 'automatic' && (
           <div className="camera-panel">
+            <div className="field">
+              <span id="group-label-auto" className="field-label">Billete</span>
+              <div className="bill-picker" role="radiogroup" aria-labelledby="group-label-auto">
+                {billOptions.map((option) => {
+                  const selected = group === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      className={`bill-option ${selected ? 'selected' : ''}`}
+                      onClick={() => setGroup(option.value)}
+                      disabled={isProcessing}
+                    >
+                      <img src={option.image} alt={`Billete de ${option.label}`} loading="lazy" />
+                      <span>{option.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="camera-header">
-              <strong>Lectura con cámara</strong>
+              <strong>Cámara</strong>
               {!isCameraOpen ? (
                 <button
                   type="button"
@@ -356,7 +368,7 @@ function App() {
             </div>
 
             <p className="camera-help">
-              Lado derecho del billete dentro del encuadre. Verde = serie · Naranja = monto.
+              Acerca la cámara al <strong>número de serie</strong> del billete hasta que llene el recuadro verde.
             </p>
 
             {isCameraOpen && (
@@ -366,9 +378,6 @@ function App() {
                   <div className="camera-guide-overlay" aria-hidden="true">
                     <div className="camera-zone camera-zone-serial">
                       <span className="camera-zone-label">SERIE</span>
-                    </div>
-                    <div className="camera-zone camera-zone-amount">
-                      <span className="camera-zone-label">MONTO</span>
                     </div>
                   </div>
                 </div>

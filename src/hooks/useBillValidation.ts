@@ -58,7 +58,7 @@ export function useBillValidation() {
       getSerialParts(serialInput.trim())
 
     if (!groupOptions.includes(groupValue) || serialSuffix !== 'B') {
-      setResult({ message: 'ℹ️ Billete no es serie B, no necesita validación.', status: 'success' })
+      setResult({ message: 'ℹ️ Billete no es serie B, no necesita validación. Es válido.', status: 'success' })
       return
     }
 
