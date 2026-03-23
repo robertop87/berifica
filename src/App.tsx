@@ -428,6 +428,10 @@ function App() {
         Desarrollado por{' '}
         <a href="https://alenasoft.com" target="_blank" rel="noreferrer">
           alenasoft.com
+        </a><br>
+        
+        <a href="https://github.com/robertop87/berifica" target="_blank" rel="noreferrer">
+          Código fuente
         </a>
       </footer>
     </div>
